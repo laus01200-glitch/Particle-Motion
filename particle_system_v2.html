@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Particle Control System</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            overflow: hidden;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            cursor: none;
+        }
+
+        #status-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #status-indicator {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+
+        #gesture-info {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #controls-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(20, 20, 30, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+            backdrop-filter: blur(10px);
+            min-width: 250px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+              input[type="range"] {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ffaa33;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 170, 51, 0.5);
+        }
+
+        .slider-value {
+            color: #ffaa33;
+            font-weight: bold;
+            min-width: 45px;
+            text-align: right;
+            font-size: 13px;
+        }
+
+        #shape-selector {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            background: rgba(20, 20, 30, 0.9);
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        .shape-btn {
+            background: transparent;
+            border: 2px solid rgba(255, 170, 51, 0.3);
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: bold;
+            cursor: pointer;
+            padding: 10px 20px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            border-radius: 25px;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+
+        .shape-btn:hover {
+            border-color: #ffaa33;
+            color: #ffaa33;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 170, 51, 0.3);
+        }
+
+        .shape-btn.active {
+            background: #ffaa33;
+            color: #000;
+            border-color: #ffaa33;
+            box-shadow: 0 5px 20px rgba(255, 170, 51, 0.5);
+        }
+
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(26, 26, 46, 0.95) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 999;
+        }
+
+        #start-screen h1 {
+            color: #ffaa33;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(255, 170, 51, 0.5);
+            letter-spacing: 3px;
+        }
+
+        .instruction-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 20px 0;
+            max-width: 500px;
+        }
+
+        .instruction-item {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            font-size: 18px;
+        }
+
+        .instruction-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 170, 51, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+            font-size: 24px;
+        }
+
+        #start-btn {
+            padding: 18px 50px;
+            font-size: 22px;
+            border: 3px solid #ffaa33;
+            background: transparent;
+            color: #ffaa33;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            margin-top: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+
+        #start-btn:hover {
+            background: #ffaa33;
+            color: #000;
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(255, 170, 51, 0.4);
+        }
+
+        #fps-counter {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 12px;
+            font-family: monospace;
+            z-index: 10;
+        }
+
+        #videoElement {
+            display: none;
+        }
+
+        .toggle-panel {
+            position: absolute;
+            top: 20px;
+            right: 290px;
+            background: rgba(20, 20, 30, 0.9);
+            padding: 10px 15px;
+            border-radius: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            z-index: 11;
+        }
+
+        .toggle-panel:hover {
+            color: #ffaa33;
+            border-color: #ffaa33;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="fps-counter">FPS: --</div>
+
+    <div id="status-container">
+        <div id="status-indicator">STARTING CAMERA...</div>
+        <div id="gesture-info">System initializing</div>
+    </div>
+
+    <div class="toggle-panel" onclick="toggleControls()">⚙ SETTINGS</div>
+
+    <div id="controls-panel">
+        <div class="control-group">
+            <label class="control-label">Particle Count</label>
+            <div class="slider-container">
+                <input type="range" id="countSlider" min="5000" max="30000" step="1000" value="20000">
+                <span class="slider-value" id="countValue">20000</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">Push Force</label>
+            <div class="slider-container">
+                <input type="range" id="pushSlider" min="2" max="15" step="0.5" value="8">
+                <span class="slider-value" id="pushValue">8.0</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">Pull Force</label>
+            <div class="slider-container">
+                <input type="range" id="pullSlider" min="5" max="25" step="0.5" value="15">
+                <span class="slider-value" id="pullValue">15.0</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">Effect Radius</label>
+            <div class="slider-container">
+                <input type="range" id="radiusSlider" min="40" max="150" step="5" value="90">
+                <span class="slider-value" id="radiusValue">90</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">Return Speed</label>
+            <div class="slider-container">
+                <input type="range" id="returnSlider" min="0.01" max="0.15" step="0.01" value="0.06">
+                <span class="slider-value" id="returnValue">0.06</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label class="control-label">Sensitivity Threshold</label>
+            <div class="slider-container">
+                <input type="range" id="thresholdSlider" min="0.15" max="0.35" step="0.01" value="0.23">
+                <span class="slider-value" id="thresholdValue">0.23</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>✨ ADVANCED PARTICLE SYSTEM</h1>
+
+        <div class="instruction-box">
+            <div class="instruction-item">
+                <div class="instruction-icon">✋</div>
+                <div><strong>Open Hand:</strong> Scatter and push particles</div>
+            </div>
+            <div class="instruction-item">
+                <div class="instruction-icon">✊</div>
+                <div><strong>Fist:</strong> Pull particles to center</div>
+            </div>
+            <div class="instruction-item">
+                <div class="instruction-icon">⚙</div>
+                <div><strong>Settings:</strong> Customize from top right</div>
+            </div>
+        </div>
+
+        <button id="start-btn">🚀 START</button>
+    </div>
+
+    <div id="shape-selector">
+        <button class="shape-btn active" onclick="setShape('sphere')">🌐 Sphere</button>
+        <button class="shape-btn" onclick="setShape('heart')">❤️ Heart</button>
+        <button class="shape-btn" onclick="setShape('cube')">📦 Cube</button>
+        <button class="shape-btn" onclick="setShape('spiral')">🌀 Spiral</button>
+    </div>
+
+    <video id="videoElement" playsinline></video>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        const CONFIG = {
+            count: 20000,
+            color: 0xffaa33,
+            returnSpeed: 0.06,
+            handRadius: 90,
+            pushForce: 8.0,
+            pullForce: 15.0,
+            fistThreshold: 0.23,
+            smoothingFactor: 0.25,
+            detectionConfidence: 0.7,
+            trackingConfidence: 0.7
+        };
+
+        let scene, camera, renderer, particles;
+        let positions, targetPositions, velocities;
+        let handPosition = new THREE.Vector3(9999, 9999, 0);
+        let smoothHandPos = new THREE.Vector3(9999, 9999, 0);
+        let handMesh, handLight, handGlow;
+        let isFist = false;
+        let fistConfidence = 0;
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 0;
+        let currentShape = 'sphere';
+
+        // Shape functions
+        function getSpherePositions(count, radius) {
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const phi = Math.acos(-1 + (2 * i) / count);
+                const theta = Math.sqrt(count * Math.PI) * phi;
+                positions[i * 3] = radius * Math.cos(theta) * Math.sin(phi);
+                positions[i * 3 + 1] = radius * Math.sin(theta) * Math.sin(phi);
+                positions[i * 3 + 2] = radius * Math.cos(phi);
+            }
+            return positions;
+        }
+
+        function getHeartPositions(count, scale) {
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const t = (i / count) * Math.PI * 2;
+                const r = Math.random() * 0.3 + 0.7;
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+                const z = (Math.random() - 0.5) * 10;
+                positions[i * 3] = x * scale * r;
+                positions[i * 3 + 1] = y * scale * r;
+                positions[i * 3 + 2] = z * scale;
+            }
+            return positions;
+        }
+
+        function getCubePositions(count, size) {
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * size;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * size;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * size;
+            }
+            return positions;
+        }
+
+        function getSpiralPositions(count, radius) {
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const t = (i / count) * 20 * Math.PI;
+                const r = (i / count) * radius;
+                positions[i * 3] = r * Math.cos(t);
+                positions[i * 3 + 1] = (i / count - 0.5) * radius * 2;
+                positions[i * 3 + 2] = r * Math.sin(t);
+            }
+            return positions;
+        }
+
+        function getGlowTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.3, 'rgba(255,200,100,0.8)');
+            gradient.addColorStop(1, 'rgba(255,100,50,0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 64, 64);
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        window.setShape = function (shape) {
+            currentShape = shape;
+            document.querySelectorAll('.shape-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            let newPositions;
+            switch (shape) {
+                case 'heart': newPositions = getHeartPositions(CONFIG.count, 3); break;
+                case 'cube': newPositions = getCubePositions(CONFIG.count, 100); break;
+                case 'spiral': newPositions = getSpiralPositions(CONFIG.count, 50); break;
+                default: newPositions = getSpherePositions(CONFIG.count, 60);
+            }
+
+            for (let i = 0; i < CONFIG.count * 3; i++) {
+                targetPositions[i] = newPositions[i];
+            }
+        };
+
+        window.toggleControls = function () {
+            const panel = document.getElementById('controls-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        };
+
+        function initSliders() {
+            document.getElementById('countSlider').addEventListener('input', (e) => {
+                CONFIG.count = parseInt(e.target.value);
+                document.getElementById('countValue').textContent = CONFIG.count;
+                recreateParticles();
+            });
+
+            document.getElementById('pushSlider').addEventListener('input', (e) => {
+                CONFIG.pushForce = parseFloat(e.target.value);
+                document.getElementById('pushValue').textContent = CONFIG.pushForce.toFixed(1);
+            });
+
+            document.getElementById('pullSlider').addEventListener('input', (e) => {
+                CONFIG.pullForce = parseFloat(e.target.value);
+                document.getElementById('pullValue').textContent = CONFIG.pullForce.toFixed(1);
+            });
+
+            document.getElementById('radiusSlider').addEventListener('input', (e) => {
+                CONFIG.handRadius = parseInt(e.target.value);
+                document.getElementById('radiusValue').textContent = CONFIG.handRadius;
+            });
+
+            document.getElementById('returnSlider').addEventListener('input', (e) => {
+                CONFIG.returnSpeed = parseFloat(e.target.value);
+                document.getElementById('returnValue').textContent = CONFIG.returnSpeed.toFixed(2);
+            });
+
+            document.getElementById('thresholdSlider').addEventListener('input', (e) => {
+                CONFIG.fistThreshold = parseFloat(e.target.value);
+                document.getElementById('thresholdValue').textContent = CONFIG.fistThreshold.toFixed(2);
+            });
+        }
+
+        function initThree() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.0015);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 120;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambientLight);
+
+            // Hand mesh invisible - sadece pozisyon takibi için
+            handMesh = new THREE.Object3D();
+            handLight = null;
+            handGlow = null;
+
+            createParticles();
+            animate();
+            initSliders();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function createParticles() {
+            const geometry = new THREE.BufferGeometry();
+            positions = new Float32Array(CONFIG.count * 3);
+            targetPositions = new Float32Array(CONFIG.count * 3);
+            velocities = new Float32Array(CONFIG.count * 3);
+            const colors = new Float32Array(CONFIG.count * 3);
+
+            const sphereData = getSpherePositions(CONFIG.count, 60);
+
+            for (let i = 0; i < CONFIG.count; i++) {
+                positions[i * 3] = sphereData[i * 3];
+                positions[i * 3 + 1] = sphereData[i * 3 + 1];
+                positions[i * 3 + 2] = sphereData[i * 3 + 2];
+                targetPositions[i * 3] = sphereData[i * 3];
+                targetPositions[i * 3 + 1] = sphereData[i * 3 + 1];
+                targetPositions[i * 3 + 2] = sphereData[i * 3 + 2];
+                velocities[i * 3] = 0;
+                velocities[i * 3 + 1] = 0;
+                velocities[i * 3 + 2] = 0;
+
+                const c = new THREE.Color();
+                const rand = Math.random();
+                if (rand > 0.9) c.setHex(0xffffff);
+                else if (rand > 0.7) c.setHex(0xff6633);
+                else c.setHex(CONFIG.color);
+                colors[i * 3] = c.r;
+                colors[i * 3 + 1] = c.g;
+                colors[i * 3 + 2] = c.b;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const sprite = getGlowTexture();
+            const material = new THREE.PointsMaterial({
+                size: 1.2,
+                map: sprite,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                transparent: true,
+                opacity: 0.95
+            });
+
+            if (particles) scene.remove(particles);
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+        }
+
+        function recreateParticles() {
+            createParticles();
+            setShape(currentShape);
+        }
+
+        async function initMediaPipe() {
+            const videoElement = document.getElementById('videoElement');
+            const statusDiv = document.getElementById('status-indicator');
+            const gestureInfo = document.getElementById('gesture-info');
+
+            const hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: CONFIG.detectionConfidence,
+                minTrackingConfidence: CONFIG.trackingConfidence
+            });
+
+            hands.onResults((results) => {
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    const lm = results.multiHandLandmarks[0];
+                    const palm = lm[9];
+
+                    const x = (0.5 - palm.x) * 250;
+                    const y = (0.5 - palm.y) * 180;
+                    const z = -palm.z * 100;
+
+                    smoothHandPos.x += (x - smoothHandPos.x) * CONFIG.smoothingFactor;
+                    smoothHandPos.y += (y - smoothHandPos.y) * CONFIG.smoothingFactor;
+                    smoothHandPos.z += (z - smoothHandPos.z) * CONFIG.smoothingFactor;
+
+                    handPosition.copy(smoothHandPos);
+                    handMesh.position.copy(handPosition);
+
+                    const wrist = lm[0];
+                    const fingerTips = [lm[4], lm[8], lm[12], lm[16], lm[20]];
+                    const fingerMids = [lm[3], lm[7], lm[11], lm[15], lm[19]];
+
+                    let tipDistSum = 0;
+                    fingerTips.forEach(tip => {
+                        const d = Math.sqrt(Math.pow(tip.x - wrist.x, 2) + Math.pow(tip.y - wrist.y, 2));
+                        tipDistSum += d;
+                    });
+                    const avgTipDist = tipDistSum / fingerTips.length;
+
+                    let curlRatio = 0;
+                    for (let i = 0; i < 5; i++) {
+                        const tipToPalm = Math.sqrt(Math.pow(fingerTips[i].x - palm.x, 2) + Math.pow(fingerTips[i].y - palm.y, 2));
+                        const midToPalm = Math.sqrt(Math.pow(fingerMids[i].x - palm.x, 2) + Math.pow(fingerMids[i].y - palm.y, 2));
+                        if (midToPalm > 0) curlRatio += tipToPalm / midToPalm;
+                    }
+                    curlRatio /= 5;
+
+                    const isFistNow = (avgTipDist < CONFIG.fistThreshold && curlRatio < 1.2);
+
+                    if (isFistNow) {
+                        fistConfidence = Math.min(fistConfidence + 0.15, 1.0);
+                    } else {
+                        fistConfidence = Math.max(fistConfidence - 0.15, 0.0);
+                    }
+
+                    isFist = fistConfidence > 0.5;
+
+                    if (isFist) {
+                        statusDiv.innerText = "✊ FIST MODE";
+                        statusDiv.style.color = "#ff3333";
+                        gestureInfo.innerText = "Pulling particles to center";
+                    } else {
+                        statusDiv.innerText = "✋ OPEN HAND MODE";
+                        statusDiv.style.color = "#00d2ff";
+                        gestureInfo.innerText = "Pushing particles away";
+                    }
+
+                } else {
+                    handPosition.set(9999, 9999, 9999);
+                    fistConfidence *= 0.8;
+                    statusDiv.innerText = "🔍 SEARCHING FOR HAND";
+                    statusDiv.style.color = "#ffaa33";
+                    gestureInfo.innerText = "Show your hand to the camera";
+                }
+            });
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: "user"
+                    }
+                });
+                videoElement.srcObject = stream;
+                await videoElement.play();
+
+                const cam = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await hands.send({ image: videoElement });
+                    },
+                    width: 1280,
+                    height: 720
+                });
+                cam.start();
+            } catch (err) {
+                console.error("Camera access error:", err);
+                alert("Camera access denied. Please check camera permissions in browser settings.");
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime >= lastTime + 1000) {
+                fps = Math.round(frameCount * 1000 / (currentTime - lastTime));
+                document.getElementById('fps-counter').textContent = `FPS: ${fps}`;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+
+            const pos = particles.geometry.attributes.position.array;
+            const damping = 0.95;
+            const maxSpeed = 15;
+
+            for (let i = 0; i < CONFIG.count; i++) {
+                const ix = i * 3, iy = i * 3 + 1, iz = i * 3 + 2;
+
+                let px = pos[ix], py = pos[iy], pz = pos[iz];
+                const tx = targetPositions[ix], ty = targetPositions[iy], tz = targetPositions[iz];
+
+                let vx = velocities[ix] + (tx - px) * CONFIG.returnSpeed;
+                let vy = velocities[iy] + (ty - py) * CONFIG.returnSpeed;
+                let vz = velocities[iz] + (tz - pz) * CONFIG.returnSpeed;
+
+                const dx = px - handPosition.x;
+                const dy = py - handPosition.y;
+                const dz = pz - handPosition.z;
+                const distSq = dx * dx + dy * dy + dz * dz;
+
+                if (distSq < (CONFIG.handRadius * CONFIG.handRadius)) {
+                    const dist = Math.sqrt(distSq) + 0.001;
+                    const forceFactor = Math.pow((CONFIG.handRadius - dist) / CONFIG.handRadius, 1.5);
+
+                    if (isFist) {
+                        const pullStrength = CONFIG.pullForce * forceFactor;
+                        vx -= (dx / dist) * pullStrength;
+                        vy -= (dy / dist) * pullStrength;
+                        vz -= (dz / dist) * pullStrength;
+
+                        const turbulence = forceFactor * 1.5;
+                        vx += (Math.random() - 0.5) * turbulence;
+                        vy += (Math.random() - 0.5) * turbulence;
+                        vz += (Math.random() - 0.5) * turbulence;
+                    } else {
+                        const pushStrength = CONFIG.pushForce * forceFactor;
+                        vx += (dx / dist) * pushStrength;
+                        vy += (dy / dist) * pushStrength;
+                        vz += (dz / dist) * pushStrength;
+                    }
+                }
+
+                const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+                if (speed > maxSpeed) {
+                    const scale = maxSpeed / speed;
+                    vx *= scale;
+                    vy *= scale;
+                    vz *= scale;
+                }
+
+                vx *= damping;
+                vy *= damping;
+                vz *= damping;
+
+                velocities[ix] = vx;
+                velocities[iy] = vy;
+                velocities[iz] = vz;
+
+                pos[ix] += vx;
+                pos[iy] += vy;
+                pos[iz] += vz;
+            }
+
+            particles.geometry.attributes.position.needsUpdate = true;
+            particles.rotation.y += 0.001;
+
+            renderer.render(scene, camera);
+        }
+
+        // Start button handler
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-screen').style.display = 'none';
+            initThree();
+            initMediaPipe();
+        });
+    </script>
+</body>
+
+</html>
